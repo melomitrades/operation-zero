@@ -97,7 +97,7 @@ const generators: Generator[] = [
       indices: [
         `Comptez le nombre de facteurs négatifs : si impair, le résultat est négatif.`,
         `Il y a 3 facteurs négatifs → résultat négatif.`,
-        `${Math.abs(a)} × ${Math.abs(b)} × ${Math.abs(c)} = ${Math.abs(res)}. Le signe est négatif donc : ${res}.`,
+        `${Math.abs(a)} × ${Math.abs(b)} × ${Math.abs(c)} = ${Math.abs(res)}. Le résultat est négatif — à vous de conclure !`,
       ],
       explication: `3 facteurs négatifs → signe −. ${Math.abs(a)} × ${Math.abs(b)} × ${Math.abs(c)} = ${Math.abs(res)} → résultat : ${res}.`,
       typeReponse: 'entier',
@@ -119,7 +119,7 @@ const generators: Generator[] = [
       indices: [
         `Le quotient de deux nombres de signes différents est négatif.`,
         `${Math.abs(num)} ÷ ${den} = ${Math.abs(res)}. Les signes sont différents.`,
-        `Résultat : ${res}`,
+        `Vérifiez le signe : numérateur et dénominateur sont-ils de même signe ou de signes différents ?`,
       ],
       explication: `Un négatif ÷ un positif = négatif. ${Math.abs(num)} ÷ ${den} = ${Math.abs(res)}, donc ${num} ÷ ${den} = ${res}.`,
       typeReponse: 'entier',
@@ -168,7 +168,7 @@ const generators: Generator[] = [
       indices: [
         `Cherchez le PPCM de ${q} et ${s}.`,
         `PPCM(${q},${s}) = ${denom}. Convertissez : ${p}/${q} = ${p*denom/q}/${denom} et ${r}/${s} = ${r*denom/s}/${denom}.`,
-        `${p*denom/q}/${denom} + ${r*denom/s}/${denom} = ${num}/${denom}${g>1?` = ${numS}/${denS}`:``}. Entrez le numérateur : ${numS}.`,
+        `${p*denom/q}/${denom} + ${r*denom/s}/${denom} = ${num}/${denom}. Simplifiez si possible, puis entrez le numérateur.`,
       ],
       explication: `${p}/${q} = ${p*denom/q}/${denom} ; ${r}/${s} = ${r*denom/s}/${denom} → ${num}/${denom}${g>1?` = ${numS}/${denS}`:``}.`,
       typeReponse: 'entier',
@@ -194,7 +194,7 @@ const generators: Generator[] = [
       indices: [
         `Réduisez au même dénominateur pour comparer.`,
         `PPCM(${q},${s}) = ${d}. Convertissez : ${p}/${q} = ${v1}/${d} et ${r}/${s} = ${v2}/${d}.`,
-        `${v1}/${d} ${v1>v2?'>':'<'} ${v2}/${d} donc ${bigger} est la plus grande. Répondez ${rep}.`,
+        `${v1}/${d} et ${v2}/${d} — comparez ces deux fractions et répondez 1 ou 2.`,
       ],
       explication: `${p}/${q} = ${v1}/${d} ; ${r}/${s} = ${v2}/${d} → ${bigger} est plus grande → réponse : ${rep}.`,
       typeReponse: 'entier',
@@ -218,7 +218,7 @@ const generators: Generator[] = [
       indices: [
         `Multipliez numérateur par numérateur et dénominateur par dénominateur.`,
         `${p} × ${r} = ${num} et ${q} × ${s} = ${den}. Donc ${num}/${den}.`,
-        `Simplifiez : ${num}/${den} = ${numS}/${denS}. Entrez le numérateur : ${numS}.`,
+        `Simplifiez ${num}/${den} en cherchant le PGCD de ${num} et ${den}, puis entrez le numérateur.`,
       ],
       explication: `${p}×${r} / ${q}×${s} = ${num}/${den} = ${numS}/${denS}.`,
       typeReponse: 'entier',
@@ -243,7 +243,7 @@ const generators: Generator[] = [
       indices: [
         `Diviser par une fraction revient à multiplier par son inverse.`,
         `(${p}/${q}) ÷ (${r}/${s}) = (${p}/${q}) × (${s}/${r}).`,
-        `${p}×${s} / ${q}×${r} = ${num}/${den} = ${numS}/${denS}. Entrez le numérateur : ${numS}.`,
+        `${p}×${s} = ${num} et ${q}×${r} = ${den}. Simplifiez ${num}/${den} puis entrez le numérateur.`,
       ],
       explication: `(${p}/${q})×(${s}/${r}) = ${num}/${den} = ${numS}/${denS}. Numérateur : ${numS}.`,
       typeReponse: 'entier',
@@ -274,7 +274,7 @@ const generators: Generator[] = [
       indices: [
         `Distribuez chaque facteur : ${a}×${b}x ${signC(a*c)} ${d>0?'+':'−'} ${Math.abs(d)}×${e}x ${signC(d*f)}.`,
         `${a*b}x ${signC(a*c)} + ${d*e}x ${signC(d*f)}. Regroupez les termes semblables.`,
-        `${coefX}x ${signC(cst)}. Pour x = 0 : ${cst}.`,
+        `Après réduction : ${coefX}x ${signC(cst)}. Substituez maintenant x = 0.`,
       ],
       explication: `= ${a*b}x ${signC(a*c)} + ${d*e}x ${signC(d*f)} = ${coefX}x ${sign(cst)}. Pour x=0 : ${res}.`,
       typeReponse: 'entier',
@@ -294,7 +294,7 @@ const generators: Generator[] = [
       indices: [
         `Utilisez le théorème de Pythagore : hyp² = a² + b².`,
         `${a}² + ${b}² = ${a*a} + ${b*b} = ${a*a+b*b}.`,
-        `√${a*a+b*b} = ${c} cm.`,
+        `Il faut calculer √${a*a+b*b}. Cherchez quel entier, élevé au carré, donne ${a*a+b*b}.`,
       ],
       explication: `${a}² + ${b}² = ${a*a} + ${b*b} = ${a*a+b*b} = ${c}². Hypoténuse = ${c} cm.`,
       typeReponse: 'entier',
@@ -317,34 +317,44 @@ const generators: Generator[] = [
       indices: [
         `Vérifiez si le carré du plus grand côté = somme des carrés des deux autres.`,
         `${c}² = ${c2}. ${a}² + ${b}² = ${a*a} + ${b*b} = ${ab2}.`,
-        `${c2} ${c2===ab2?'=':'≠'} ${ab2} → ${c2===ab2?'oui':'non'}. Répondez ${rep}.`,
+        `${c2} et ${ab2} — ces deux valeurs sont-elles égales ? Répondez 1 ou 0.`,
       ],
       explication: `${c}² = ${c2} ${c2===ab2?'=':'≠'} ${a}²+${b}² = ${ab2} → triangle ${c2===ab2?'rectangle':'non rectangle'}. Réponse : ${rep}.`,
       typeReponse: 'entier',
     };
   },
 
-  // 13 : Translation — abscisse
+  // 13 : Lecture de tableau de proportionnalité
   (seed) => {
+    // Tableau : quantité x → prix y, coefficient k = y/x
+    // On donne 3 valeurs connues et on demande la 4ème
     const combos = [
-      { ax:-3,ay:5, vx:4, vy:-7 }, { ax:2, ay:-4,vx:-5,vy:3  },
-      { ax:-6,ay:1, vx:8, vy:-2 }, { ax:4, ay:-3,vx:-6,vy:5  },
-      { ax:-1,ay:7, vx:3, vy:-9 }, { ax:5, ay:-2,vx:-4,vy:6  },
+      { k:3,  x1:4, x2:7,  x3:10, xq:6  },  // prix unitaire 3 €, cherche 6×3=18
+      { k:4,  x1:3, x2:5,  x3:8,  xq:7  },  // k=4, cherche 7×4=28
+      { k:5,  x1:2, x2:6,  x3:9,  xq:4  },  // k=5, cherche 4×5=20
+      { k:2,  x1:5, x2:8,  x3:12, xq:9  },  // k=2, cherche 9×2=18
+      { k:6,  x1:3, x2:5,  x3:7,  xq:4  },  // k=6, cherche 4×6=24
+      { k:7,  x1:2, x2:4,  x3:6,  xq:5  },  // k=7, cherche 5×7=35
+      { k:3,  x1:5, x2:8,  x3:11, xq:9  },  // k=3, cherche 9×3=27
     ];
-    const { ax,ay,vx,vy } = pick(combos, seed);
-    void ay; void vy;
-    const rx = ax + vx;
+    const { k, x1, x2, x3, xq } = pick(combos, seed);
+    const y1 = k*x1, y2 = k*x2, y3 = k*x3;
+    const res = k * xq;
     return {
-      question: `Le point A(${ax} ; ${ay}) subit la translation de vecteur (${vx} ; ${vy}). Quelle est l'abscisse de A' ?`,
-      reponse: rx,
-      fragment: `AT-${Math.abs(rx)}`,
+      question: `ZÉRO achète des composants électroniques. Tableau de prix :\n` +
+        `Quantité : ${x1} | ${x2} | ${x3} | ${xq}\n` +
+        `Prix (€)  : ${y1} | ${y2} | ${y3} | ?\n` +
+        `Complétez le tableau. Quel est le prix manquant (en €) ?`,
+      reponse: res,
+      fragment: `PT-${res}`,
       indices: [
-        `Pour une translation de vecteur (a ; b), on ajoute a à l'abscisse et b à l'ordonnée.`,
-        `Nouvelle abscisse : ${ax} + (${vx}).`,
-        `${ax} + (${vx}) = ${rx}.`,
+        `Ce tableau est-il proportionnel ? Vérifiez que prix ÷ quantité est constant.`,
+        `${y1} ÷ ${x1} = ${k}. C'est le coefficient de proportionnalité.`,
+        `Le coefficient est ${k}. Appliquez-le à la quantité ${xq} pour trouver le prix.`,
       ],
-      explication: `Abscisse de A' : ${ax} + (${vx}) = ${rx}.`,
+      explication: `Coefficient : ${y1}/${x1} = ${k}. Prix pour ${xq} : ${xq} × ${k} = ${res} €.`,
       typeReponse: 'entier',
+      unite: '€',
     };
   },
 
@@ -363,7 +373,7 @@ const generators: Generator[] = [
       indices: [
         `a⁻ⁿ = 1/aⁿ.`,
         `${base}⁻${exp} = 1/${base}^${exp}.`,
-        `${base}^${exp} = ${den}. Donc ${base}⁻${exp} = 1/${den}. Le dénominateur est ${den}.`,
+        `${base}^${exp} = ${den}. Donc ${base}⁻${exp} = 1/${den}. Quel est le dénominateur de cette fraction ?`,
       ],
       explication: `${base}⁻${exp} = 1/${base}^${exp} = 1/${den}. Dénominateur : ${den}.`,
       typeReponse: 'entier',
@@ -390,7 +400,7 @@ const generators: Generator[] = [
       indices: [
         `Comptez combien de fois vous déplacez la virgule pour obtenir ${mantisse}.`,
         `${formatted} → on déplace la virgule de ${exp} rangs vers la gauche.`,
-        `${mantisse} × 10^${exp}. L'exposant est ${exp}.`,
+        `On déplace la virgule de ${exp} rangs. Écrivez l'exposant de la puissance de 10.`,
       ],
       explication: `${formatted} = ${mantisse} × 10^${exp}. Exposant : ${exp}.`,
       typeReponse: 'entier',
@@ -413,7 +423,7 @@ const generators: Generator[] = [
       indices: [
         `Calculez d'abord la réduction : ${taux} % de ${prix}.`,
         `${taux}/100 × ${prix} = ${reduc} €.`,
-        `Prix final : ${prix} − ${reduc} = ${res} €.`,
+        `La réduction est de ${reduc} €. Soustrayez-la du prix initial ${prix} €.`,
       ],
       explication: `${taux}% de ${prix} = ${reduc} €. Prix final = ${prix} − ${reduc} = ${res} €.`,
       typeReponse: 'entier',
@@ -435,7 +445,7 @@ const generators: Generator[] = [
       indices: [
         `La formule est : distance = vitesse × temps.`,
         `Distance = ${v} × ${t}.`,
-        `${v} × ${t} = ${d} km.`,
+        `Posez la multiplication ${v} × ${t} et calculez la distance en km.`,
       ],
       explication: `d = v × t = ${v} × ${t} = ${d} km.`,
       typeReponse: 'entier',
@@ -460,7 +470,7 @@ const generators: Generator[] = [
       indices: [
         `Regroupez les termes en x d'un côté et les constantes de l'autre.`,
         `${a}x − ${c}x = ${d} − (${b}) → ${a-c}x = ${d-b}.`,
-        `x = ${d-b} ÷ ${a-c} = ${res}.`,
+        `${a-c}x = ${d-b}. Divisez les deux membres par ${a-c} pour isoler x.`,
       ],
       explication: `${a-c}x = ${d-b} → x = ${res}.`,
       typeReponse: res === Math.floor(res) ? 'entier' : 'decimal',
@@ -482,7 +492,7 @@ const generators: Generator[] = [
       indices: [
         `Par Thalès : OA/OA' = OB/OB'.`,
         `${OA}/${OAp} = ${OB}/OB'. Faites le produit en croix.`,
-        `OB' = ${OAp} × ${OB} / ${OA} = ${OAp*OB}/${OA} = ${OBp}.`,
+        `OB' = ${OAp} × ${OB} / ${OA} = ${OAp*OB}/${OA}. Effectuez la division pour trouver OB'.`,
       ],
       explication: `${OA}/${OAp} = ${OB}/OB' → OB' = ${OAp*OB}/${OA} = ${OBp} cm.`,
       typeReponse: OBp === Math.floor(OBp) ? 'entier' : 'decimal',
@@ -510,7 +520,7 @@ const generators: Generator[] = [
       indices: [
         `Additionner toutes les valeurs, puis diviser par le nombre de valeurs.`,
         `${notes.join(' + ')} = ?`,
-        `Somme = ${somme}. Nombre de valeurs = ${notes.length}. ${somme} / ${notes.length} = ${moy}.`,
+        `Somme = ${somme}. Nombre de valeurs = ${notes.length}. Divisez maintenant pour obtenir la moyenne.`,
       ],
       explication: `Somme = ${somme}. Nombre de valeurs = ${notes.length}. Moyenne = ${somme}/${notes.length} = ${moy}.`,
       typeReponse: moy === Math.floor(moy) ? 'entier' : 'decimal',
@@ -533,7 +543,7 @@ const META = [
   { id:10, acte:2, titre:"Expression développée",     narration:"ZÉRO a factorisé son code pour le cacher. Développez et réduisez l'expression pour le révéler." },
   { id:11, acte:3, titre:"Tour de surveillance",      narration:"Une tour de surveillance triangulaire abrite un émetteur de ZÉRO. Pour calculer la portée de l'émetteur, vous avez besoin de la longueur de l'hypoténuse." },
   { id:12, acte:3, titre:"Vérification du triangle",  narration:"ZÉRO a prétendu construire un triangle rectangle parfait comme alibi. Vérifiez si ce triangle est vraiment rectangle. Répondez 1 (OUI) ou 0 (NON)." },
-  { id:13, acte:3, titre:"Antenne translatée",        narration:"ZÉRO a déplacé une antenne par translation pour tromper les satellites. Calculez la nouvelle coordonnée." },
+  { id:13, acte:3, titre:"Le marché noir de ZÉRO",    narration:"ZÉRO se réapprovisionne en composants électroniques sur le marché noir. La Brigade a intercepté son tableau de commandes. Déchiffrez le prix manquant pour remonter jusqu'à son fournisseur." },
   { id:14, acte:3, titre:"Puissance du signal",       narration:"Le signal de ZÉRO est amplifié à une puissance négative — une technique pour le rendre microscopique et indétectable. Calculez sa valeur." },
   { id:15, acte:3, titre:"Écriture scientifique",     narration:"ZÉRO communique via un réseau de micro-capteurs. Exprimez ce nombre en notation scientifique. Quel est l'exposant de 10 ?" },
   { id:16, acte:4, titre:"Calcul de proportion",      narration:"Pour désactiver le premier réacteur de ZÉRO, vous devez calculer un pourcentage exact. Une erreur et le réacteur se surcharge." },
