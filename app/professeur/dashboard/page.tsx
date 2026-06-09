@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { ACTES, ENIGMES } from '@/lib/enigmes';
 import styles from './dashboard.module.css';
@@ -33,7 +33,6 @@ export default function Dashboard() {
   const [deleting, setDeleting] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const tokenRef = useRef<string | false>(false);
 
   const getToken = useCallback(() => {
     const token = sessionStorage.getItem('profToken');
@@ -66,7 +65,6 @@ export default function Dashboard() {
   }, [getToken, router]);
 
   useEffect(() => {
-    tokenRef.current = sessionStorage.getItem('profToken') || false;
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
