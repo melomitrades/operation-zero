@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ACTES, ENIGMES } from '@/lib/enigmes';
 import styles from './dashboard.module.css';
@@ -27,20 +27,22 @@ interface Session {
 export default function Dashboard() {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [sessionSelectee, setSessionSelectee] = useState<Session | null>(null);
+  const [sessionSelecteeId, setSessionSelecteeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const tokenRef = useRef<string | false>(false);
 
-  const checkAuth = useCallback(() => {
+  const getToken = useCallback(() => {
     const token = sessionStorage.getItem('profToken');
-    if (!token) { router.push('/professeur'); return false; }
+    if (!token) { router.push('/professeur'); return null; }
     return token;
   }, [router]);
 
   const fetchData = useCallback(async () => {
-    const token = checkAuth();
+    const token = getToken();
     if (!token) return;
     try {
       const res = await fetch('/api/resultats/liste', {
@@ -48,31 +50,36 @@ export default function Dashboard() {
       });
       if (res.status === 401) { router.push('/professeur'); return; }
       const data = await res.json();
-      setSessions(data.sessions || []);
-      if (data.sessions?.length > 0 && !sessionSelectee) {
-        setSessionSelectee(data.sessions[0]);
-      } else if (sessionSelectee) {
-        const updated = data.sessions?.find((s: Session) => s.id === sessionSelectee.id);
-        if (updated) setSessionSelectee(updated);
-      }
+      const fetched: Session[] = data.sessions || [];
+      setSessions(fetched);
+      // Auto-select first session only on first load
+      setSessionSelecteeId(prev => {
+        if (prev !== null) return prev;
+        return fetched.length > 0 ? fetched[0].id : null;
+      });
       setLastRefresh(new Date());
     } catch {
       setError('Erreur de chargement.');
     } finally {
       setLoading(false);
     }
-  }, [checkAuth, router, sessionSelectee]);
+  }, [getToken, router]);
 
   useEffect(() => {
+    tokenRef.current = sessionStorage.getItem('profToken') || false;
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const sessionSelectee = sessions.find(s => s.id === sessionSelecteeId) ?? null;
 
   async function creerSession() {
-    const token = checkAuth();
+    const token = getToken();
     if (!token) return;
     setCreating(true);
+    setError('');
     try {
       const res = await fetch('/api/session/creer', {
         method: 'POST',
@@ -81,12 +88,40 @@ export default function Dashboard() {
       const data = await res.json();
       if (data.code) {
         await fetchData();
+        setSessionSelecteeId(data.id);
         alert(`Session créée ! Code : ${data.code}\nPartagez ce code avec vos élèves.`);
       }
     } catch {
       setError('Erreur lors de la création.');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function supprimerSession(sessionId: number, code: string) {
+    if (!confirm(`Supprimer la session ${code} ?\nTous les groupes et résultats associés seront effacés.`)) return;
+    const token = getToken();
+    if (!token) return;
+    setDeleting(sessionId);
+    setError('');
+    try {
+      const res = await fetch('/api/session/supprimer', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-prof-token': token },
+        body: JSON.stringify({ sessionId }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || 'Erreur lors de la suppression.');
+      } else {
+        // If we deleted the selected session, deselect it
+        setSessionSelecteeId(prev => prev === sessionId ? null : prev);
+        await fetchData();
+      }
+    } catch {
+      setError('Erreur lors de la suppression.');
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -140,19 +175,29 @@ export default function Dashboard() {
               <p className={styles.noSessions}>Aucune session.<br />Créez-en une ci-dessus.</p>
             ) : (
               sessions.map(s => (
-                <button
+                <div
                   key={s.id}
-                  className={`${styles.sessionBtn} ${sessionSelectee?.id === s.id ? styles.sessionBtnActive : ''}`}
-                  onClick={() => setSessionSelectee(s)}
+                  className={`${styles.sessionItem} ${sessionSelecteeId === s.id ? styles.sessionItemActive : ''}`}
                 >
-                  <span className={styles.sessionCode}>{s.code}</span>
-                  <span className={styles.sessionMeta}>
-                    {s.groupes?.length || 0} groupe(s)
-                  </span>
-                  <span className={`${styles.sessionStatus} ${s.is_active ? styles.statusActive : styles.statusClosed}`}>
-                    {s.is_active ? '● ACTIVE' : '○ FERMÉE'}
-                  </span>
-                </button>
+                  <button
+                    className={styles.sessionBtn}
+                    onClick={() => setSessionSelecteeId(s.id)}
+                  >
+                    <span className={styles.sessionCode}>{s.code}</span>
+                    <span className={styles.sessionMeta}>{s.groupes?.length || 0} groupe(s)</span>
+                    <span className={`${styles.sessionStatus} ${s.is_active ? styles.statusActive : styles.statusClosed}`}>
+                      {s.is_active ? '● ACTIVE' : '○ FERMÉE'}
+                    </span>
+                  </button>
+                  <button
+                    className={styles.sessionDeleteBtn}
+                    onClick={() => supprimerSession(s.id, s.code)}
+                    disabled={deleting === s.id}
+                    title="Supprimer cette session"
+                  >
+                    {deleting === s.id ? '…' : '✕'}
+                  </button>
+                </div>
               ))
             )}
           </aside>
@@ -167,7 +212,7 @@ export default function Dashboard() {
               <>
                 <div className={styles.panelHeader}>
                   <div>
-                    <p className={styles.panelEyebrow}>SESSION EN COURS</p>
+                    <p className={styles.panelEyebrow}>SESSION SÉLECTIONNÉE</p>
                     <h2 className={styles.panelCode}>{sessionSelectee.code}</h2>
                   </div>
                   <div className={styles.panelStats}>
@@ -226,10 +271,7 @@ export default function Dashboard() {
                                 <div className={styles.progBarWrapper}>
                                   <div
                                     className={styles.progBarFill}
-                                    style={{
-                                      width: `${pct}%`,
-                                      background: acteActuel?.couleur || 'var(--cyan)'
-                                    }}
+                                    style={{ width: `${pct}%`, background: acteActuel?.couleur || 'var(--cyan)' }}
                                   />
                                 </div>
                                 <span className={styles.progNum}>{prog}/20</span>
@@ -237,9 +279,7 @@ export default function Dashboard() {
                               <td className={styles.tdEnigme}>
                                 {g.finished_at ? '✓' : `E${Math.min(g.enigme_courante, 20)}`}
                               </td>
-                              <td className={styles.tdDuree}>
-                                {formatDuree(g.started_at, g.finished_at)}
-                              </td>
+                              <td className={styles.tdDuree}>{formatDuree(g.started_at, g.finished_at)}</td>
                               <td className={styles.tdPenalite} style={{ color: g.temps_penalite > 0 ? 'var(--red)' : 'var(--text-muted)' }}>
                                 {g.temps_penalite > 0 ? `−${Math.floor(g.temps_penalite / 60)}m` : '—'}
                               </td>
