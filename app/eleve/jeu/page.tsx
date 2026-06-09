@@ -29,16 +29,29 @@ export default function JeuPage() {
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Refs pour avoir les valeurs à jour dans les callbacks sans les mettre en dépendance
+  const tempsRestantRef = useRef(DUREE_TOTALE);
+  const penaliteTotalRef = useRef(0);
+  const fragmentsRef = useRef<string[]>([]);
+  const groupeIdRef = useRef<number | null>(null);
+
   const enigme = enigmes[enigmeIndex] as EnigmeVariante | undefined;
   const acteActuel = ACTES.find(a => a.id === enigme?.acte);
 
-  // Load group + seeds
+  // Sync refs à chaque render
+  tempsRestantRef.current = tempsRestant;
+  penaliteTotalRef.current = penaliteTotal;
+  fragmentsRef.current = fragments;
+  groupeIdRef.current = groupeId;
+
+  // Chargement groupe + seeds
   useEffect(() => {
     const id = sessionStorage.getItem('groupeId');
     const p = sessionStorage.getItem('prenoms');
     if (!id || !p) { router.push('/eleve'); return; }
     const gid = Number(id);
     setGroupeId(gid);
+    groupeIdRef.current = gid;
     setPrenoms(p);
 
     fetch(`/api/session/seeds?groupeId=${gid}`)
@@ -60,6 +73,7 @@ export default function JeuPage() {
     timerRef.current = setInterval(() => {
       setTempsRestant(prev => {
         const next = prev - 1;
+        tempsRestantRef.current = next;
         if (next <= 0) { clearInterval(timerRef.current!); setPhase('defaite'); return 0; }
         return next;
       });
@@ -80,25 +94,38 @@ export default function JeuPage() {
     return Math.abs(val - enigme.reponse) < 0.01;
   }
 
-  const sauvegarderProgression = useCallback(async (
-    nouvelleEnigme: number, nouveauxFragments: string[],
-    nouvellePenalite: number, resolu: boolean
-  ) => {
-    if (!groupeId || !enigme) return;
+  // Sauvegarde avec les valeurs passées explicitement (pas de closure sur le state)
+  const sauvegarder = useCallback(async (params: {
+    enigmeCourante: number;
+    frags: string[];
+    penalite: number;
+    temps: number;
+    enigmeId: number;
+    nbEssais: number;
+    nbIndices: number;
+    resolue: boolean;
+    termine: boolean;
+  }) => {
+    const gid = groupeIdRef.current;
+    if (!gid) return;
+    const { enigmeCourante, frags, penalite, temps, enigmeId, nbEssais, nbIndices, resolue, termine } = params;
     await fetch('/api/progression/sauvegarder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        groupeId, enigmeCourante: nouvelleEnigme,
-        fragments: nouveauxFragments.join(','),
-        tempsPenalite: nouvellePenalite,
-        enigmeId: enigmeIndex + 1,
-        nbEssais: essais + 1, nbIndices: indicesReveles.length,
-        resolue: resolu, termine: nouvelleEnigme > 20,
-        tempsRestant,
+        groupeId: gid,
+        enigmeCourante,
+        fragments: frags.join(','),
+        tempsPenalite: penalite,
+        enigmeId,
+        nbEssais,
+        nbIndices,
+        resolue,
+        termine,
+        tempsRestant: temps,
       }),
     }).catch(console.error);
-  }, [groupeId, enigme, enigmeIndex, essais, indicesReveles.length, tempsRestant]);
+  }, []);
 
   async function handleSoumettre(e: React.FormEvent) {
     e.preventDefault();
@@ -107,46 +134,105 @@ export default function JeuPage() {
     setErreur('');
 
     if (checkReponse(reponse)) {
+      // ✅ Bonne réponse
       const nouveauxFragments = [...fragments, enigme.fragment];
       setFragments(nouveauxFragments);
+      fragmentsRef.current = nouveauxFragments;
       setSucces(true);
       const prochainIndex = enigmeIndex + 1;
-      await sauvegarderProgression(prochainIndex + 1, nouveauxFragments, penaliteTotal, true);
+
+      await sauvegarder({
+        enigmeCourante: prochainIndex + 1,
+        frags: nouveauxFragments,
+        penalite: penaliteTotalRef.current,
+        temps: tempsRestantRef.current,
+        enigmeId: enigmeIndex + 1,
+        nbEssais: essais + 1,
+        nbIndices: indicesReveles.length,
+        resolue: true,
+        termine: prochainIndex >= enigmes.length,
+      });
+
       if (prochainIndex >= enigmes.length) {
         setTimeout(() => setPhase('victoire'), 1500);
       } else {
         setTimeout(() => {
           setEnigmeIndex(prochainIndex);
-          setReponse(''); setEssais(0); setIndicesReveles([]); setSucces(false); setErreur('');
+          setReponse('');
+          setEssais(0);
+          setIndicesReveles([]);
+          setSucces(false);
+          setErreur('');
         }, 2000);
       }
     } else {
+      // ❌ Mauvaise réponse
       const nouvelEssai = essais + 1;
       setEssais(nouvelEssai);
-      const penalite = nouvelEssai > 1 ? penaliteTotal + PENALITE_ESSAI : penaliteTotal;
-      if (nouvelEssai > 1) { setPenaliteTotal(penalite); setTempsRestant(prev => Math.max(0, prev - PENALITE_ESSAI)); }
+
+      // Malus dès le 2ème essai incorrect
+      let nouvellePenalite = penaliteTotalRef.current;
+      let nouveauTemps = tempsRestantRef.current;
+      if (nouvelEssai > 1) {
+        nouvellePenalite += PENALITE_ESSAI;
+        nouveauTemps = Math.max(0, nouveauTemps - PENALITE_ESSAI);
+        setPenaliteTotal(nouvellePenalite);
+        penaliteTotalRef.current = nouvellePenalite;
+        setTempsRestant(nouveauTemps);
+        tempsRestantRef.current = nouveauTemps;
+      }
+
       setErreur(`Réponse incorrecte.${nouvelEssai > 1 ? ' −1 minute.' : ' Réessayez.'}`);
       setReponse('');
-      await sauvegarderProgression(enigmeIndex + 1, fragments, penalite, false);
+
+      await sauvegarder({
+        enigmeCourante: enigmeIndex + 1,
+        frags: fragmentsRef.current,
+        penalite: nouvellePenalite,
+        temps: nouveauTemps,
+        enigmeId: enigmeIndex + 1,
+        nbEssais: nouvelEssai,
+        nbIndices: indicesReveles.length,
+        resolue: false,
+        termine: false,
+      });
     }
     setLoading(false);
   }
 
-  function revelerIndice(idx: number) {
+  // Révéler un indice : malus immédiatement sauvegardé
+  async function revelerIndice(idx: number) {
     if (indicesReveles.includes(idx)) return;
-    setIndicesReveles([...indicesReveles, idx]);
-    const nouvellePenalite = penaliteTotal + PENALITE_INDICE;
+    const nouveauxIndices = [...indicesReveles, idx];
+    setIndicesReveles(nouveauxIndices);
+
+    const nouvellePenalite = penaliteTotalRef.current + PENALITE_INDICE;
+    const nouveauTemps = Math.max(0, tempsRestantRef.current - PENALITE_INDICE);
     setPenaliteTotal(nouvellePenalite);
-    setTempsRestant(prev => Math.max(0, prev - PENALITE_INDICE));
+    penaliteTotalRef.current = nouvellePenalite;
+    setTempsRestant(nouveauTemps);
+    tempsRestantRef.current = nouveauTemps;
+
+    // ✅ Sauvegarde immédiate du malus indice
+    await sauvegarder({
+      enigmeCourante: enigmeIndex + 1,
+      frags: fragmentsRef.current,
+      penalite: nouvellePenalite,
+      temps: nouveauTemps,
+      enigmeId: enigmeIndex + 1,
+      nbEssais: essais,
+      nbIndices: nouveauxIndices.length,
+      resolue: false,
+      termine: false,
+    });
   }
 
-  const scoreTemps = Math.max(0, tempsRestant);
-  const scoreFinal = scoreTemps + fragments.length * 100;
+  const scoreFinal = Math.max(0, tempsRestant) + fragments.length * 100;
 
   if (phase === 'loading') {
     return (
-      <main className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--cyan)', letterSpacing: '0.2em', animation: 'blink 1s step-end infinite' }}>
+      <main className={styles.main} style={{ display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <p style={{ fontFamily:'var(--font-mono)', color:'var(--cyan)', letterSpacing:'0.2em', animation:'blink 1s step-end infinite' }}>
           CHARGEMENT DE LA MISSION…
         </p>
       </main>
@@ -177,7 +263,7 @@ export default function JeuPage() {
       </header>
 
       <div className={styles.progressBar}>
-        <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
+        <div className={styles.progressFill} style={{ width:`${progressPct}%` }} />
       </div>
 
       {showDecoder && (
@@ -187,7 +273,7 @@ export default function JeuPage() {
             <div className={styles.decoderGrid}>
               {enigmes.map((_, i) => (
                 <div key={i} className={`${styles.decoderCell} ${i < fragments.length ? styles.decoderCellActive : ''}`}>
-                  {i < fragments.length ? fragments[i] : `E${i + 1}`}
+                  {i < fragments.length ? fragments[i] : `E${i+1}`}
                 </div>
               ))}
             </div>
@@ -197,13 +283,13 @@ export default function JeuPage() {
       )}
 
       <div className={styles.content}>
-        <div className={styles.acteBar} style={{ borderColor: acteActuel?.couleur + '44', color: acteActuel?.couleur }}>
+        <div className={styles.acteBar} style={{ borderColor: acteActuel?.couleur+'44', color: acteActuel?.couleur }}>
           <span>{acteActuel?.nom}</span>
-          <span className={styles.enigmeNum}>ÉNIGME {enigmeIndex + 1}/20</span>
+          <span className={styles.enigmeNum}>ÉNIGME {enigmeIndex+1}/20</span>
         </div>
 
         <div className={styles.enigmeCard}>
-          <div className={styles.enigmeCardTop} style={{ background: `linear-gradient(90deg, ${acteActuel?.couleur}22, transparent)` }}>
+          <div className={styles.enigmeCardTop} style={{ background:`linear-gradient(90deg, ${acteActuel?.couleur}22, transparent)` }}>
             <h2 className={styles.enigmeTitre}>{enigme.titre}</h2>
           </div>
 
@@ -225,18 +311,18 @@ export default function JeuPage() {
                 <div key={i} className={styles.indiceItem}>
                   {indicesReveles.includes(i) ? (
                     <div className={styles.indiceRevele}>
-                      <span className={styles.indiceBadge}>INDICE {i + 1}</span>
+                      <span className={styles.indiceBadge}>INDICE {i+1}</span>
                       <p>{indice}</p>
                     </div>
                   ) : (
                     <button
                       className={styles.indiceBtn}
                       onClick={() => revelerIndice(i)}
-                      disabled={i > 0 && !indicesReveles.includes(i - 1)}
+                      disabled={i > 0 && !indicesReveles.includes(i-1)}
                     >
-                      {i === 0 || indicesReveles.includes(i - 1)
-                        ? `▶ Révéler l'indice ${i + 1}`
-                        : `🔒 Indice ${i + 1} (débloquez le précédent d'abord)`}
+                      {i === 0 || indicesReveles.includes(i-1)
+                        ? `▶ Révéler l'indice ${i+1}`
+                        : `🔒 Indice ${i+1} (débloquez le précédent d'abord)`}
                     </button>
                   )}
                 </div>
@@ -276,7 +362,7 @@ export default function JeuPage() {
         </div>
 
         {penaliteTotal > 0 && (
-          <p className={styles.penaliteInfo}>Pénalités accumulées : −{Math.floor(penaliteTotal / 60)} min</p>
+          <p className={styles.penaliteInfo}>Pénalités accumulées : −{Math.floor(penaliteTotal/60)} min</p>
         )}
       </div>
     </main>
