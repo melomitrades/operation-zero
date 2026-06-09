@@ -21,12 +21,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const sql = getDb();
-
-    // Calculate score: temps restant + bonus
     const fragmentCount = fragments ? fragments.split(',').filter(Boolean).length : 0;
     const score = Math.max(0, tempsRestant || 0) + fragmentCount * 100;
+    const finishedAt: string | null = termine ? new Date().toISOString() : null;
+    const resolueAt: string | null = resolue ? new Date().toISOString() : null;
 
-    // Update group
     await sql`
       UPDATE groupes
       SET
@@ -34,11 +33,10 @@ export async function POST(req: NextRequest) {
         fragments = ${fragments || ''},
         temps_penalite = ${tempsPenalite || 0},
         score = ${score},
-        finished_at = ${termine ? sql`NOW()` : null}
+        finished_at = ${finishedAt}
       WHERE id = ${groupeId}
     `;
 
-    // Upsert tentative for this enigme
     const existing = await sql`
       SELECT id FROM tentatives
       WHERE groupe_id = ${groupeId} AND enigme_id = ${enigmeId}
@@ -51,20 +49,13 @@ export async function POST(req: NextRequest) {
           nb_essais = ${nbEssais},
           nb_indices = ${nbIndices},
           resolue = ${resolue},
-          resolue_at = ${resolue ? sql`NOW()` : null}
+          resolue_at = ${resolueAt}
         WHERE groupe_id = ${groupeId} AND enigme_id = ${enigmeId}
       `;
     } else {
       await sql`
         INSERT INTO tentatives (groupe_id, enigme_id, nb_essais, nb_indices, resolue, resolue_at)
-        VALUES (
-          ${groupeId},
-          ${enigmeId},
-          ${nbEssais},
-          ${nbIndices},
-          ${resolue},
-          ${resolue ? sql`NOW()` : null}
-        )
+        VALUES (${groupeId}, ${enigmeId}, ${nbEssais}, ${nbIndices}, ${resolue}, ${resolueAt})
       `;
     }
 
