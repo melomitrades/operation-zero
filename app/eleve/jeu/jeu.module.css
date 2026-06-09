@@ -1,0 +1,526 @@
+.main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Top bar */
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topLeft { display: flex; flex-direction: column; }
+.agentLabel { font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.2em; color: var(--text-muted); }
+.agentName { font-family: var(--font-display); font-size: 0.85rem; color: var(--cyan); font-weight: 600; }
+
+.chrono {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.05em;
+}
+
+.chronoCritique {
+  color: var(--red) !important;
+  animation: pulseCritique 0.5s step-end infinite;
+}
+
+@keyframes pulseCritique {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.chronoIcon { font-size: 1rem; }
+
+.topRight {}
+.decoderBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.decoderBtn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* Progress */
+.progressBar {
+  height: 3px;
+  background: var(--bg3);
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--cyan));
+  transition: width 0.5s ease;
+}
+
+.progressActes {
+  display: none;
+}
+
+/* Decoder overlay */
+.decoderOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 14, 0.85);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.decoderPanel {
+  background: var(--bg2);
+  border: 1px solid var(--cyan);
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 0 40px rgba(0, 200, 255, 0.2);
+}
+
+.decoderTitle {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.decoderGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.decoderCell {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.5rem 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-align: center;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.decoderCellActive {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(0, 255, 159, 0.05);
+}
+
+.decoderClose {
+  display: block;
+  margin: 0 auto;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  padding: 0.5rem 2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.decoderClose:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* Content */
+.content {
+  flex: 1;
+  max-width: 720px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+/* Acte bar */
+.acteBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border: 1px solid;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  background: rgba(0,0,0,0.2);
+}
+
+.enigmeNum {
+  color: var(--text-muted);
+}
+
+/* Enigme card */
+.enigmeCard {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.enigmeCardTop {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.enigmeTitre {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--white);
+  letter-spacing: 0.05em;
+}
+
+/* Narration */
+.narration {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0, 200, 255, 0.02);
+}
+
+.narrationIcon {
+  color: var(--cyan);
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.narration p {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text);
+  font-style: italic;
+}
+
+/* Question */
+.question {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.questionLabel {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.questionText {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--white);
+  line-height: 1.6;
+}
+
+.questionUnite {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--orange);
+  margin-top: 0.5rem;
+}
+
+/* Indices */
+.indicesSection {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.indicesTitle {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+}
+
+.indicesBtns {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.indiceBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+
+.indiceBtn:hover:not(:disabled) {
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.indiceBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.indiceRevele {
+  background: rgba(255, 159, 0, 0.06);
+  border: 1px solid rgba(255, 159, 0, 0.3);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+}
+
+.indiceBadge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  color: var(--orange);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.indiceRevele p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* Answer form */
+.answerForm {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.answerRow {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.answerInput {
+  flex: 1;
+  font-family: var(--font-mono) !important;
+  font-size: 1.1rem !important;
+  letter-spacing: 0.05em;
+  text-align: center;
+}
+
+.answerBtn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  padding: 0 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.answerBtn:hover:not(:disabled) {
+  background: var(--green);
+  color: var(--bg);
+  box-shadow: 0 0 15px rgba(0, 255, 159, 0.3);
+}
+
+.answerBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.answerBtnSucces {
+  border-color: var(--green);
+  background: var(--green) !important;
+  color: var(--bg) !important;
+}
+
+.erreur {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--red);
+  padding: 0.6rem 1rem;
+  border: 1px solid rgba(255, 0, 60, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 0, 60, 0.05);
+}
+
+.succesBox {
+  padding: 1rem;
+  border: 1px solid rgba(0, 255, 159, 0.3);
+  border-radius: 4px;
+  background: rgba(0, 255, 159, 0.05);
+}
+
+.succesTitle {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  color: var(--green);
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.succesExplication {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.succesNext {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* Penalite info */
+.penaliteInfo {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--red);
+  text-align: center;
+  margin-top: 1rem;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+}
+
+/* Fin screens */
+.ecranFin {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.victoireContent, .defaiteContent {
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+}
+
+.victoireGlow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(0,255,159,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.victoireEyebrow, .defaiteEyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.victoireTitre, .defaiteTitre {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 8vw, 4rem);
+  font-weight: 900;
+  color: var(--white);
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.victoireNeutralise {
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.defaiteVaincre {
+  color: var(--red);
+}
+
+.victoireTexte, .defaiteTexte {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.victoireStats {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.victStat { display: flex; flex-direction: column; gap: 0.3rem; }
+.victStatVal {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--cyan);
+}
+.victStatLabel {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+}
+
+.codeComplet {
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  padding: 1.5rem;
+  background: rgba(0, 255, 159, 0.04);
+}
+
+.codeLabel {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.25em;
+  color: var(--green);
+  margin-bottom: 0.75rem;
+}
+
+.codeFragments {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  color: var(--white);
+  letter-spacing: 0.1em;
+  line-height: 1.8;
+  word-break: break-all;
+}
