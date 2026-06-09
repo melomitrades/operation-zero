@@ -11,6 +11,7 @@ export const schema = `
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
   code VARCHAR(8) NOT NULL UNIQUE,
+  seeds TEXT DEFAULT '',
   created_at TIMESTAMP DEFAULT NOW(),
   started_at TIMESTAMP,
   ended_at TIMESTAMP,

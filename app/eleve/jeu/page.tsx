@@ -1,20 +1,21 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ENIGMES, ACTES } from '@/lib/enigmes';
+import { genererEnigmes, DEFAULT_SEEDS, ACTES, EnigmeVariante } from '@/lib/enigmes';
 import styles from './jeu.module.css';
 
-const DUREE_TOTALE = 60 * 60; // 60 minutes en secondes
-const PENALITE_INDICE = 2 * 60; // 2 minutes par indice
-const PENALITE_ESSAI = 60; // 1 minute par essai supplémentaire
+const DUREE_TOTALE = 60 * 60;
+const PENALITE_INDICE = 2 * 60;
+const PENALITE_ESSAI = 60;
 
-type Phase = 'jeu' | 'victoire' | 'defaite';
+type Phase = 'loading' | 'jeu' | 'victoire' | 'defaite';
 
 export default function JeuPage() {
   const router = useRouter();
   const [groupeId, setGroupeId] = useState<number | null>(null);
   const [prenoms, setPrenoms] = useState('');
-  const [enigmeIndex, setEnigmeIndex] = useState(0); // 0-based
+  const [enigmes, setEnigmes] = useState<EnigmeVariante[]>([]);
+  const [enigmeIndex, setEnigmeIndex] = useState(0);
   const [reponse, setReponse] = useState('');
   const [essais, setEssais] = useState(0);
   const [indicesReveles, setIndicesReveles] = useState<number[]>([]);
@@ -23,22 +24,34 @@ export default function JeuPage() {
   const [fragments, setFragments] = useState<string[]>([]);
   const [penaliteTotal, setPenaliteTotal] = useState(0);
   const [tempsRestant, setTempsRestant] = useState(DUREE_TOTALE);
-  const [phase, setPhase] = useState<Phase>('jeu');
+  const [phase, setPhase] = useState<Phase>('loading');
   const [showDecoder, setShowDecoder] = useState(false);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
 
-  const enigme = ENIGMES[enigmeIndex];
+  const enigme = enigmes[enigmeIndex] as EnigmeVariante | undefined;
   const acteActuel = ACTES.find(a => a.id === enigme?.acte);
 
-  // Load stored data
+  // Load group + seeds
   useEffect(() => {
     const id = sessionStorage.getItem('groupeId');
     const p = sessionStorage.getItem('prenoms');
     if (!id || !p) { router.push('/eleve'); return; }
-    setGroupeId(Number(id));
+    const gid = Number(id);
+    setGroupeId(gid);
     setPrenoms(p);
+
+    fetch(`/api/session/seeds?groupeId=${gid}`)
+      .then(r => r.json())
+      .then(data => {
+        const seeds: number[] = data.seeds || DEFAULT_SEEDS;
+        setEnigmes(genererEnigmes(seeds));
+        setPhase('jeu');
+      })
+      .catch(() => {
+        setEnigmes(genererEnigmes(DEFAULT_SEEDS));
+        setPhase('jeu');
+      });
   }, [router]);
 
   // Timer
@@ -47,11 +60,7 @@ export default function JeuPage() {
     timerRef.current = setInterval(() => {
       setTempsRestant(prev => {
         const next = prev - 1;
-        if (next <= 0) {
-          clearInterval(timerRef.current!);
-          setPhase('defaite');
-          return 0;
-        }
+        if (next <= 0) { clearInterval(timerRef.current!); setPhase('defaite'); return 0; }
         return next;
       });
     }, 1000);
@@ -65,77 +74,57 @@ export default function JeuPage() {
   }
 
   function checkReponse(input: string): boolean {
-    const e = enigme;
-    if (e.typeReponse === 'decimal') {
-      const val = parseFloat(input.replace(',', '.'));
-      return Math.abs(val - (e.reponse as number)) < 0.01;
-    }
-    const val = parseInt(input, 10);
-    return val === e.reponse;
+    if (!enigme) return false;
+    const val = parseFloat(input.replace(',', '.'));
+    if (isNaN(val)) return false;
+    return Math.abs(val - enigme.reponse) < 0.01;
   }
 
   const sauvegarderProgression = useCallback(async (
-    nouvelleEnigme: number,
-    nouveauxFragments: string[],
-    nouvellePenalite: number,
-    resolu: boolean
+    nouvelleEnigme: number, nouveauxFragments: string[],
+    nouvellePenalite: number, resolu: boolean
   ) => {
-    if (!groupeId) return;
+    if (!groupeId || !enigme) return;
     await fetch('/api/progression/sauvegarder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        groupeId,
-        enigmeCourante: nouvelleEnigme,
+        groupeId, enigmeCourante: nouvelleEnigme,
         fragments: nouveauxFragments.join(','),
         tempsPenalite: nouvellePenalite,
         enigmeId: enigmeIndex + 1,
-        nbEssais: essais + 1,
-        nbIndices: indicesReveles.length,
-        resolue: resolu,
-        termine: nouvelleEnigme > 20,
-        tempsRestant: tempsRestant,
+        nbEssais: essais + 1, nbIndices: indicesReveles.length,
+        resolue: resolu, termine: nouvelleEnigme > 20,
+        tempsRestant,
       }),
     }).catch(console.error);
-  }, [groupeId, enigmeIndex, essais, indicesReveles.length, tempsRestant]);
+  }, [groupeId, enigme, enigmeIndex, essais, indicesReveles.length, tempsRestant]);
 
   async function handleSoumettre(e: React.FormEvent) {
     e.preventDefault();
-    if (!reponse.trim() || loading) return;
+    if (!reponse.trim() || loading || !enigme) return;
     setLoading(true);
     setErreur('');
 
     if (checkReponse(reponse)) {
-      // Correct !
       const nouveauxFragments = [...fragments, enigme.fragment];
       setFragments(nouveauxFragments);
       setSucces(true);
-
       const prochainIndex = enigmeIndex + 1;
       await sauvegarderProgression(prochainIndex + 1, nouveauxFragments, penaliteTotal, true);
-
-      if (prochainIndex >= ENIGMES.length) {
-        // Victoire !
+      if (prochainIndex >= enigmes.length) {
         setTimeout(() => setPhase('victoire'), 1500);
       } else {
         setTimeout(() => {
           setEnigmeIndex(prochainIndex);
-          setReponse('');
-          setEssais(0);
-          setIndicesReveles([]);
-          setSucces(false);
-          setErreur('');
+          setReponse(''); setEssais(0); setIndicesReveles([]); setSucces(false); setErreur('');
         }, 2000);
       }
     } else {
-      // Erreur
       const nouvelEssai = essais + 1;
       setEssais(nouvelEssai);
       const penalite = nouvelEssai > 1 ? penaliteTotal + PENALITE_ESSAI : penaliteTotal;
-      if (nouvelEssai > 1) {
-        setPenaliteTotal(penalite);
-        setTempsRestant(prev => Math.max(0, prev - PENALITE_ESSAI));
-      }
+      if (nouvelEssai > 1) { setPenaliteTotal(penalite); setTempsRestant(prev => Math.max(0, prev - PENALITE_ESSAI)); }
       setErreur(`Réponse incorrecte.${nouvelEssai > 1 ? ' −1 minute.' : ' Réessayez.'}`);
       setReponse('');
       await sauvegarderProgression(enigmeIndex + 1, fragments, penalite, false);
@@ -152,22 +141,25 @@ export default function JeuPage() {
   }
 
   const scoreTemps = Math.max(0, tempsRestant);
-  const scoreBonus = fragments.length * 100;
-  const scoreFinal = scoreTemps + scoreBonus;
+  const scoreFinal = scoreTemps + fragments.length * 100;
 
-  if (phase === 'victoire') {
-    return <EcranVictoire fragments={fragments} scoreFinal={scoreFinal} tempsRestant={tempsRestant} prenoms={prenoms} />;
+  if (phase === 'loading') {
+    return (
+      <main className={styles.main} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontFamily: 'var(--font-mono)', color: 'var(--cyan)', letterSpacing: '0.2em', animation: 'blink 1s step-end infinite' }}>
+          CHARGEMENT DE LA MISSION…
+        </p>
+      </main>
+    );
   }
-  if (phase === 'defaite') {
-    return <EcranDefaite enigmesResolues={fragments.length} prenoms={prenoms} />;
-  }
+  if (phase === 'victoire') return <EcranVictoire fragments={fragments} scoreFinal={scoreFinal} tempsRestant={tempsRestant} prenoms={prenoms} />;
+  if (phase === 'defaite') return <EcranDefaite enigmesResolues={fragments.length} prenoms={prenoms} />;
   if (!enigme) return null;
 
-  const progressPct = ((enigmeIndex) / ENIGMES.length) * 100;
+  const progressPct = (enigmeIndex / enigmes.length) * 100;
 
   return (
     <main className={styles.main}>
-      {/* Top bar */}
       <header className={styles.topBar}>
         <div className={styles.topLeft}>
           <span className={styles.agentLabel}>AGENT</span>
@@ -184,43 +176,32 @@ export default function JeuPage() {
         </div>
       </header>
 
-      {/* Progress bar */}
       <div className={styles.progressBar}>
         <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
-        <div className={styles.progressActes}>
-          {ACTES.map(a => (
-            <span key={a.id} className={styles.progressActe} style={{ color: a.couleur }}>
-              {a.nom.split('—')[0].trim()}
-            </span>
-          ))}
-        </div>
       </div>
 
-      {/* Fragment decoder overlay */}
       {showDecoder && (
         <div className={styles.decoderOverlay} onClick={() => setShowDecoder(false)}>
           <div className={styles.decoderPanel} onClick={e => e.stopPropagation()}>
             <p className={styles.decoderTitle}>DÉCODEUR DE FRAGMENTS</p>
             <div className={styles.decoderGrid}>
-              {ENIGMES.map((_, i) => (
+              {enigmes.map((_, i) => (
                 <div key={i} className={`${styles.decoderCell} ${i < fragments.length ? styles.decoderCellActive : ''}`}>
                   {i < fragments.length ? fragments[i] : `E${i + 1}`}
                 </div>
               ))}
             </div>
-            <button className={`${styles.decoderClose}`} onClick={() => setShowDecoder(false)}>FERMER</button>
+            <button className={styles.decoderClose} onClick={() => setShowDecoder(false)}>FERMER</button>
           </div>
         </div>
       )}
 
       <div className={styles.content}>
-        {/* Acte indicator */}
         <div className={styles.acteBar} style={{ borderColor: acteActuel?.couleur + '44', color: acteActuel?.couleur }}>
           <span>{acteActuel?.nom}</span>
           <span className={styles.enigmeNum}>ÉNIGME {enigmeIndex + 1}/20</span>
         </div>
 
-        {/* Enigme card */}
         <div className={styles.enigmeCard}>
           <div className={styles.enigmeCardTop} style={{ background: `linear-gradient(90deg, ${acteActuel?.couleur}22, transparent)` }}>
             <h2 className={styles.enigmeTitre}>{enigme.titre}</h2>
@@ -237,7 +218,6 @@ export default function JeuPage() {
             {enigme.unite && <p className={styles.questionUnite}>{enigme.unite}</p>}
           </div>
 
-          {/* Indices */}
           <div className={styles.indicesSection}>
             <p className={styles.indicesTitle}>INDICES DISPONIBLES (−2 min chacun)</p>
             <div className={styles.indicesBtns}>
@@ -264,7 +244,6 @@ export default function JeuPage() {
             </div>
           </div>
 
-          {/* Answer form */}
           <form onSubmit={handleSoumettre} className={styles.answerForm}>
             <div className={styles.answerRow}>
               <input
@@ -285,7 +264,6 @@ export default function JeuPage() {
                 {succes ? '✓ CORRECT' : loading ? '...' : 'VALIDER'}
               </button>
             </div>
-
             {erreur && <p className={styles.erreur}>⚠ {erreur}</p>}
             {succes && (
               <div className={styles.succesBox}>
@@ -297,11 +275,8 @@ export default function JeuPage() {
           </form>
         </div>
 
-        {/* Penalite info */}
         {penaliteTotal > 0 && (
-          <p className={styles.penaliteInfo}>
-            Pénalités accumulées : −{Math.floor(penaliteTotal / 60)} min
-          </p>
+          <p className={styles.penaliteInfo}>Pénalités accumulées : −{Math.floor(penaliteTotal / 60)} min</p>
         )}
       </div>
     </main>
@@ -317,23 +292,11 @@ function EcranVictoire({ fragments, scoreFinal, tempsRestant, prenoms }: {
         <div className={styles.victoireGlow} />
         <p className={styles.victoireEyebrow}>MISSION ACCOMPLIE</p>
         <h1 className={styles.victoireTitre}>OPÉRATION ZÉRO<br /><span className={styles.victoireNeutralise}>NEUTRALISÉE</span></h1>
-        <p className={styles.victoireTexte}>
-          Félicitations, Brigade <strong>{prenoms}</strong> !<br />
-          L&apos;IA ZÉRO a été désactivée. Le système du collège est restauré.
-        </p>
+        <p className={styles.victoireTexte}>Félicitations, Brigade <strong>{prenoms}</strong> !<br />L&apos;IA ZÉRO a été désactivée. Le système du collège est restauré.</p>
         <div className={styles.victoireStats}>
-          <div className={styles.victStat}>
-            <span className={styles.victStatVal}>{fragments.length}/20</span>
-            <span className={styles.victStatLabel}>Fragments obtenus</span>
-          </div>
-          <div className={styles.victStat}>
-            <span className={styles.victStatVal}>{Math.floor(tempsRestant / 60)}:{String(tempsRestant % 60).padStart(2,'0')}</span>
-            <span className={styles.victStatLabel}>Temps restant</span>
-          </div>
-          <div className={styles.victStat}>
-            <span className={styles.victStatVal} style={{ color: 'var(--green)' }}>{scoreFinal}</span>
-            <span className={styles.victStatLabel}>Score final</span>
-          </div>
+          <div className={styles.victStat}><span className={styles.victStatVal}>{fragments.length}/20</span><span className={styles.victStatLabel}>Fragments obtenus</span></div>
+          <div className={styles.victStat}><span className={styles.victStatVal}>{Math.floor(tempsRestant/60)}:{String(tempsRestant%60).padStart(2,'0')}</span><span className={styles.victStatLabel}>Temps restant</span></div>
+          <div className={styles.victStat}><span className={styles.victStatVal} style={{color:'var(--green)'}}>{scoreFinal}</span><span className={styles.victStatLabel}>Score final</span></div>
         </div>
         <div className={styles.codeComplet}>
           <p className={styles.codeLabel}>CODE DE DÉSACTIVATION</p>
@@ -344,21 +307,15 @@ function EcranVictoire({ fragments, scoreFinal, tempsRestant, prenoms }: {
   );
 }
 
-function EcranDefaite({ enigmesResolues, prenoms }: { enigmesResolues: number; prenoms: string; }) {
+function EcranDefaite({ enigmesResolues, prenoms }: { enigmesResolues: number; prenoms: string }) {
   return (
     <main className={styles.ecranFin}>
       <div className={styles.defaiteContent}>
         <p className={styles.defaiteEyebrow}>TEMPS ÉCOULÉ</p>
         <h1 className={styles.defaiteTitre}>ZÉRO A<br /><span className={styles.defaiteVaincre}>RÉSISTÉ</span></h1>
-        <p className={styles.defaiteTexte}>
-          Brigade <strong>{prenoms}</strong>, le temps imparti est écoulé.<br />
-          ZÉRO est toujours actif. Votre commandant analysera vos résultats.
-        </p>
+        <p className={styles.defaiteTexte}>Brigade <strong>{prenoms}</strong>, le temps imparti est écoulé.<br />ZÉRO est toujours actif. Votre commandant analysera vos résultats.</p>
         <div className={styles.victoireStats}>
-          <div className={styles.victStat}>
-            <span className={styles.victStatVal} style={{ color: 'var(--red)' }}>{enigmesResolues}/20</span>
-            <span className={styles.victStatLabel}>Énigmes résolues</span>
-          </div>
+          <div className={styles.victStat}><span className={styles.victStatVal} style={{color:'var(--red)'}}>{enigmesResolues}/20</span><span className={styles.victStatLabel}>Énigmes résolues</span></div>
         </div>
       </div>
     </main>
