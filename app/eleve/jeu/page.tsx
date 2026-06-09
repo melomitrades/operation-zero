@@ -252,11 +252,11 @@ export default function JeuPage() {
                     <button
                       className={styles.indiceBtn}
                       onClick={() => revelerIndice(i)}
-                      disabled={indicesReveles.includes(i - 1) || i === 0 || indicesReveles.includes(i)}
+                      disabled={i > 0 && !indicesReveles.includes(i - 1)}
                     >
                       {i === 0 || indicesReveles.includes(i - 1)
                         ? `▶ Révéler l'indice ${i + 1}`
-                        : `🔒 Indice ${i + 1} (débloquez le précédent)`}
+                        : `🔒 Indice ${i + 1} (débloquez le précédent d'abord)`}
                     </button>
                   )}
                 </div>
