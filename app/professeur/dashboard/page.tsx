@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { ACTES, ENIGMES } from '@/lib/enigmes';
+import { ACTES, ENIGMES, NIVEAUX } from '@/lib/enigmes';
 import styles from './dashboard.module.css';
 
 interface Groupe {
@@ -14,6 +14,7 @@ interface Groupe {
   started_at: string;
   finished_at: string | null;
   fragments: string;
+  niveau: number;
 }
 
 interface Session {
@@ -246,6 +247,7 @@ export default function Dashboard() {
                         <tr>
                           <th>GROUPE</th>
                           <th>CLASSE</th>
+                          <th>NIV.</th>
                           <th>PROGRESSION</th>
                           <th>ÉNIGME</th>
                           <th>DURÉE</th>
@@ -265,6 +267,9 @@ export default function Dashboard() {
                             <tr key={g.id} className={g.finished_at ? styles.rowTermine : ''}>
                               <td className={styles.tdPrenoms}>{g.prenoms}</td>
                               <td className={styles.tdClasse}>{g.classe}</td>
+                              <td>
+                                {(() => { const niv = NIVEAUX.find(n => n.id === (g.niveau || 1)); return niv ? <span style={{fontFamily:'var(--font-display)',fontSize:'0.6rem',letterSpacing:'0.1em',padding:'0.2rem 0.4rem',border:`1px solid ${niv.couleur}44`,borderRadius:'3px',color:niv.couleur}}>{niv.label}</span> : null; })()}
+                              </td>
                               <td className={styles.tdProg}>
                                 <div className={styles.progBarWrapper}>
                                   <div

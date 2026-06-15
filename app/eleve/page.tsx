@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { NIVEAUX, Niveau } from '@/lib/enigmes';
 import styles from './eleve.module.css';
 
 export default function ElevePage() {
@@ -9,6 +10,7 @@ export default function ElevePage() {
   const [prenoms, setPrenoms] = useState('');
   const [classe, setClasse] = useState('');
   const [codeSession, setCodeSession] = useState('');
+  const [niveau, setNiveau] = useState<Niveau>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,16 +26,21 @@ export default function ElevePage() {
       const res = await fetch('/api/session/rejoindre', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prenoms: prenoms.trim(), classe: classe.trim(), codeSession: codeSession.trim().toUpperCase() }),
+        body: JSON.stringify({
+          prenoms: prenoms.trim(),
+          classe: classe.trim(),
+          codeSession: codeSession.trim().toUpperCase(),
+          niveau,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Erreur inconnue.');
       } else {
-        // Store group id in sessionStorage
         sessionStorage.setItem('groupeId', String(data.groupeId));
         sessionStorage.setItem('prenoms', prenoms.trim());
         sessionStorage.setItem('classe', classe.trim());
+        sessionStorage.setItem('niveau', String(niveau));
         router.push('/eleve/jeu');
       }
     } catch {
@@ -51,8 +58,7 @@ export default function ElevePage() {
           <p className={styles.eyebrow}>BRIGADE MATHÉMATIQUE — ENRÔLEMENT</p>
           <h1 className={styles.title}>IDENTIFICATION<br />DE L&apos;AGENT</h1>
           <p className={styles.subtitle}>
-            Votre commandant a créé une session de mission.<br />
-            Entrez le code de session pour rejoindre l&apos;opération.
+            Entrez le code de session fourni par votre commandant<br />et choisissez votre niveau de difficulté.
           </p>
         </div>
 
@@ -97,6 +103,30 @@ export default function ElevePage() {
               className={styles.codeInput}
             />
             <span className={styles.hint}>Fourni par votre professeur</span>
+          </div>
+
+          {/* Sélecteur de niveau */}
+          <div className={styles.field}>
+            <span className="label">Niveau de difficulté</span>
+            <div className={styles.niveauxGrid}>
+              {NIVEAUX.map(n => (
+                <button
+                  key={n.id}
+                  type="button"
+                  className={`${styles.niveauBtn} ${niveau === n.id ? styles.niveauBtnActive : ''}`}
+                  style={niveau === n.id ? { borderColor: n.couleur, color: n.couleur, background: `${n.couleur}12` } : {}}
+                  onClick={() => setNiveau(n.id as Niveau)}
+                >
+                  <span className={styles.niveauLabel} style={niveau === n.id ? { color: n.couleur } : {}}>
+                    {n.label}
+                  </span>
+                  <span className={styles.niveauDesc}>{n.description}</span>
+                  <span className={styles.niveauMulti} style={niveau === n.id ? { color: n.couleur } : {}}>
+                    ×{n.multiplicateur} score
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <p className={styles.error}>⚠ {error}</p>}

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { genererEnigmes, DEFAULT_SEEDS, ACTES, EnigmeVariante } from '@/lib/enigmes';
+import { genererEnigmes, DEFAULT_SEEDS, ACTES, NIVEAUX, EnigmeVariante, Niveau } from '@/lib/enigmes';
 import styles from './jeu.module.css';
 
 const DUREE_TOTALE = 60 * 60;
@@ -25,6 +25,7 @@ export default function JeuPage() {
   const [penaliteTotal, setPenaliteTotal] = useState(0);
   const [tempsRestant, setTempsRestant] = useState(DUREE_TOTALE);
   const [phase, setPhase] = useState<Phase>('loading');
+  const [niveau, setNiveau] = useState<Niveau>(1);
   const [showDecoder, setShowDecoder] = useState(false);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -58,11 +59,13 @@ export default function JeuPage() {
       .then(r => r.json())
       .then(data => {
         const seeds: number[] = data.seeds || DEFAULT_SEEDS;
-        setEnigmes(genererEnigmes(seeds));
+        const niv = (data.niveau as Niveau) || 1;
+        setNiveau(niv);
+        setEnigmes(genererEnigmes(seeds, niv));
         setPhase('jeu');
       })
       .catch(() => {
-        setEnigmes(genererEnigmes(DEFAULT_SEEDS));
+        setEnigmes(genererEnigmes(DEFAULT_SEEDS, 1));
         setPhase('jeu');
       });
   }, [router]);
@@ -238,7 +241,7 @@ export default function JeuPage() {
       </main>
     );
   }
-  if (phase === 'victoire') return <EcranVictoire fragments={fragments} scoreFinal={scoreFinal} tempsRestant={tempsRestant} prenoms={prenoms} />;
+  if (phase === 'victoire') return <EcranVictoire fragments={fragments} scoreFinal={scoreFinal} tempsRestant={tempsRestant} prenoms={prenoms} niveau={niveau} />;
   if (phase === 'defaite') return <EcranDefaite enigmesResolues={fragments.length} prenoms={prenoms} />;
   if (!enigme) return null;
 
@@ -369,8 +372,8 @@ export default function JeuPage() {
   );
 }
 
-function EcranVictoire({ fragments, scoreFinal, tempsRestant, prenoms }: {
-  fragments: string[]; scoreFinal: number; tempsRestant: number; prenoms: string;
+function EcranVictoire({ fragments, scoreFinal, tempsRestant, prenoms, niveau }: {
+  fragments: string[]; scoreFinal: number; tempsRestant: number; prenoms: string; niveau: Niveau;
 }) {
   return (
     <main className={styles.ecranFin}>
@@ -379,6 +382,10 @@ function EcranVictoire({ fragments, scoreFinal, tempsRestant, prenoms }: {
         <p className={styles.victoireEyebrow}>MISSION ACCOMPLIE</p>
         <h1 className={styles.victoireTitre}>OPÉRATION ZÉRO<br /><span className={styles.victoireNeutralise}>NEUTRALISÉE</span></h1>
         <p className={styles.victoireTexte}>Félicitations, Brigade <strong>{prenoms}</strong> !<br />L&apos;IA ZÉRO a été désactivée. Le système du collège est restauré.</p>
+        <div style={{display:'inline-flex',alignItems:'center',gap:'0.5rem',padding:'0.4rem 1rem',border:`1px solid ${NIVEAUX.find(n=>n.id===niveau)?.couleur}`,borderRadius:'4px',marginBottom:'1.5rem'}}>
+          <span style={{fontFamily:'var(--font-display)',fontSize:'0.7rem',letterSpacing:'0.15em',color:NIVEAUX.find(n=>n.id===niveau)?.couleur}}>{NIVEAUX.find(n=>n.id===niveau)?.label}</span>
+          <span style={{fontFamily:'var(--font-mono)',fontSize:'0.65rem',color:'var(--text-muted)'}}>×{NIVEAUX.find(n=>n.id===niveau)?.multiplicateur} score</span>
+        </div>
         <div className={styles.victoireStats}>
           <div className={styles.victStat}><span className={styles.victStatVal}>{fragments.length}/20</span><span className={styles.victStatLabel}>Fragments obtenus</span></div>
           <div className={styles.victStat}><span className={styles.victStatVal}>{Math.floor(tempsRestant/60)}:{String(tempsRestant%60).padStart(2,'0')}</span><span className={styles.victStatLabel}>Temps restant</span></div>

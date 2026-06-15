@@ -10,16 +10,17 @@ export async function GET(req: NextRequest) {
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT s.seeds
+      SELECT s.seeds, g.niveau
       FROM sessions s
       JOIN groupes g ON g.session_id = s.id
       WHERE g.id = ${Number(groupeId)}
     `;
     if (rows.length === 0) {
-      return NextResponse.json({ seeds: DEFAULT_SEEDS });
+      return NextResponse.json({ seeds: DEFAULT_SEEDS, niveau: 1 });
     }
     const seeds = rows[0].seeds ? JSON.parse(rows[0].seeds) : DEFAULT_SEEDS;
-    return NextResponse.json({ seeds });
+    const niveau = rows[0].niveau || 1;
+    return NextResponse.json({ seeds, niveau });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
